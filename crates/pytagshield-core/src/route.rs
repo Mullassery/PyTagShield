@@ -220,6 +220,9 @@ mod tests {
                 forward_ip: None,
                 queue_capacity: None,
                 posthog: None,
+                ga4: None,
+                meta: None,
+                sgtm: None,
                 webhook: None,
             },
             DestinationConfig {
@@ -230,6 +233,9 @@ mod tests {
                 forward_ip: None,
                 queue_capacity: None,
                 posthog: None,
+                ga4: None,
+                meta: None,
+                sgtm: None,
                 webhook: None,
             },
             DestinationConfig {
@@ -240,6 +246,9 @@ mod tests {
                 forward_ip: None,
                 queue_capacity: None,
                 posthog: None,
+                ga4: None,
+                meta: None,
+                sgtm: None,
                 webhook: None,
             },
         ]

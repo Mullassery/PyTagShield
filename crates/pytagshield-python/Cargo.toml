@@ -11,14 +11,6 @@ homepage.workspace = true
 readme = "README.md"
 keywords = ["analytics", "privacy", "consent", "gdpr", "event-pipeline"]
 categories = ["api-bindings"]
-classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Intended Audience :: Developers",
-    "Programming Language :: Rust",
-    "Programming Language :: Python :: Implementation :: CPython",
-    "Topic :: Internet :: Log Analysis",
-    "Topic :: Software Development :: Libraries",
-]
 
 [lib]
 name = "pytagshield"

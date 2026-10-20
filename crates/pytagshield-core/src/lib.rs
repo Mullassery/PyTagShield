@@ -8,6 +8,7 @@
 //! The crate is intentionally free of any Python dependency; Python bindings
 //! live in the optional `pytagshield-python` crate.
 
+pub mod attribution;
 pub mod config;
 pub mod consent;
 pub mod delivery;
@@ -20,6 +21,7 @@ pub mod pipeline;
 pub mod route;
 pub mod transform;
 
+pub use attribution::AttributionReport;
 pub use config::Config;
 pub use consent::{ConsentSnapshot, ConsentStore};
 pub use delivery::{DeliveryLog, DeliveryRecord, DeliveryStatus, DeliveryTask};

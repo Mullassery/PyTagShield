@@ -23,6 +23,8 @@ pub struct Config {
     #[serde(default)]
     pub transforms: Vec<TransformRule>,
     #[serde(default)]
+    pub attribution: AttributionConfig,
+    #[serde(default)]
     pub destinations: Vec<DestinationConfig>,
     #[serde(default)]
     pub routes: Vec<RouteConfig>,
@@ -254,6 +256,51 @@ impl Default for MinimizationConfig {
     }
 }
 
+/// Attribution / click-ID preservation settings.
+///
+/// Click identifiers (gclid, fbclid, msclkid, ttclid, etc.) and their
+/// companion browser cookies (`_fbp`, `_fbc`, `_gcl_au`) are captured from
+/// incoming event properties and duplicated into a canonical, lowercase key
+/// set so a destination can reliably read them even when the client names
+/// them differently. Preservation is a reductive/deterministic step: it never
+/// invents data, only relocates values the client already sent.
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AttributionConfig {
+    /// Enable click-ID preservation. Off by default so existing deployments
+    /// are unaffected.
+    #[serde(default)]
+    pub preserve_click_ids: bool,
+    /// Canonical click-ID keys to look for (case-insensitive), in addition to
+    /// the built-in defaults. Values are copied verbatim to the canonical
+    /// lowercase form in `properties`.
+    #[serde(default)]
+    pub click_id_keys: Vec<String>,
+    /// When true, click IDs are only preserved if a matching purpose was
+    /// granted (they are attribution/advertising signals). When false,
+    /// preservation always runs, matching the reductive-action semantics of
+    /// `rename`/`drop`.
+    #[serde(default)]
+    pub require_consent: bool,
+}
+
+/// The click-ID keys recognised out of the box, lowercased.
+pub const DEFAULT_CLICK_ID_KEYS: &[&str] = &[
+    "gclid",
+    "gbraid",
+    "wbraid",
+    "dclid",
+    "fbclid",
+    "msclkid",
+    "ttclid",
+    "twclid",
+    "li_fat_id",
+    "sccid",
+    "epik",
+    "irclickid",
+    "rdt_cid",
+];
+
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DeliveryConfig {
@@ -308,6 +355,9 @@ impl Default for DeliveryConfig {
 #[serde(rename_all = "snake_case")]
 pub enum DestinationType {
     Posthog,
+    Ga4,
+    Meta,
+    Sgtm,
     Webhook,
     Log,
 }
@@ -333,6 +383,83 @@ pub struct WebhookSettings {
     pub headers: HashMap<String, String>,
 }
 
+/// Server-side GTM (sGTM) compatible endpoint settings.
+///
+/// Posts a GA4-style payload (`client_id` + `events[]`) to a server GTM
+/// container's `/g/collect` endpoint or any endpoint that understands the
+/// same shape. This lets PyTagShield act as the upstream producer for an
+/// existing sGTM container instead of sending to a platform directly.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct SgtmSettings {
+    /// Collector URL, e.g. `https://sgtm.example.com/g/collect`.
+    pub url: String,
+    /// Optional measurement id / tag id forwarded as a query parameter.
+    #[serde(default)]
+    pub measurement_id: Option<String>,
+    /// Extra static query parameters appended to the URL.
+    #[serde(default)]
+    pub query: HashMap<String, String>,
+    #[serde(default)]
+    pub headers: HashMap<String, String>,
+}
+
+/// GA4 Measurement Protocol settings.
+///
+/// Events are sent to `{host}/mp/collect?measurement_id=..&api_secret=..`.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Ga4Settings {
+    /// GA4 measurement ID, e.g. `G-XXXXXXXXXX`.
+    pub measurement_id: String,
+    /// Measurement Protocol API secret (generated in the GA4 admin UI).
+    ///
+    /// This is a credential: keep it out of source control and prefer
+    /// `PYTAGSHIELD__...`-style environment substitution.
+    pub api_secret: String,
+    /// Collector host. Defaults to the GA4 endpoint.
+    #[serde(default = "default_ga4_host")]
+    pub host: String,
+    /// Whether to include `debug_mode: 1` on every event (useful while
+    /// validating a setup; noise in production).
+    #[serde(default)]
+    pub debug_mode: bool,
+}
+
+fn default_ga4_host() -> String {
+    "https://www.google-analytics.com".to_owned()
+}
+
+/// Meta Conversions API settings.
+///
+/// Events are sent to `{host}/{pixel_id}/events?access_token=..`.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct MetaSettings {
+    /// Meta dataset / pixel id.
+    pub pixel_id: String,
+    /// Conversions API access token.
+    ///
+    /// This is a credential: treat it like a secret.
+    pub access_token: String,
+    /// Graph API host. Defaults to the production Graph endpoint.
+    #[serde(default = "default_meta_host")]
+    pub host: String,
+    /// Graph API version path segment, e.g. `v21.0`.
+    #[serde(default = "default_meta_api_version")]
+    pub api_version: String,
+    /// Optional test event code for the Events Manager "Test Events" tool.
+    #[serde(default)]
+    pub test_event_code: Option<String>,
+}
+
+fn default_meta_host() -> String {
+    "https://graph.facebook.com".to_owned()
+}
+fn default_meta_api_version() -> String {
+    "v21.0".to_owned()
+}
+
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DestinationConfig {
@@ -356,6 +483,12 @@ pub struct DestinationConfig {
     #[serde(default)]
     pub posthog: Option<PosthogSettings>,
     #[serde(default)]
+    pub ga4: Option<Ga4Settings>,
+    #[serde(default)]
+    pub meta: Option<MetaSettings>,
+    #[serde(default)]
+    pub sgtm: Option<SgtmSettings>,
+    #[serde(default)]
     pub webhook: Option<WebhookSettings>,
 }
 
@@ -369,6 +502,23 @@ impl DestinationConfig {
     /// pipeline has already cleared it when the global switch is off.
     pub fn forwards_ip(&self) -> bool {
         self.forward_ip.unwrap_or(true)
+    }
+
+    /// Return the name of the first settings block present on this
+    /// destination that is absent from `allowed`. Used to reject, e.g., a
+    /// `posthog` block on a `webhook` destination.
+    pub fn unexpected_block(&self, allowed: &[&str]) -> Option<&'static str> {
+        let present = [
+            ("posthog", self.posthog.is_some()),
+            ("ga4", self.ga4.is_some()),
+            ("meta", self.meta.is_some()),
+            ("sgtm", self.sgtm.is_some()),
+            ("webhook", self.webhook.is_some()),
+        ];
+        present
+            .into_iter()
+            .find(|(name, is_set)| *is_set && !allowed.contains(name))
+            .map(|(name, _)| name)
     }
 }
 
@@ -560,9 +710,99 @@ impl Config {
                             d.name
                         ));
                     }
-                    if d.webhook.is_some() {
+                    if let Some(extra) = d.unexpected_block(&["posthog"]) {
                         return err(format!(
-                            "destination '{}': 'webhook' block is not allowed for type 'posthog'",
+                            "destination '{}': '{extra}' block is not allowed for type 'posthog'",
+                            d.name
+                        ));
+                    }
+                }
+                DestinationType::Ga4 => {
+                    let Some(ga4) = &d.ga4 else {
+                        return err(format!(
+                            "destination '{}': type 'ga4' requires a 'ga4' block",
+                            d.name
+                        ));
+                    };
+                    if ga4.measurement_id.trim().is_empty() {
+                        return err(format!(
+                            "destination '{}': ga4.measurement_id must not be empty",
+                            d.name
+                        ));
+                    }
+                    if ga4.api_secret.trim().is_empty() {
+                        return err(format!(
+                            "destination '{}': ga4.api_secret must not be empty",
+                            d.name
+                        ));
+                    }
+                    if ga4.host.trim().is_empty() {
+                        return err(format!(
+                            "destination '{}': ga4.host must not be empty",
+                            d.name
+                        ));
+                    }
+                    if let Some(extra) = d.unexpected_block(&["ga4"]) {
+                        return err(format!(
+                            "destination '{}': '{extra}' block is not allowed for type 'ga4'",
+                            d.name
+                        ));
+                    }
+                }
+                DestinationType::Meta => {
+                    let Some(meta) = &d.meta else {
+                        return err(format!(
+                            "destination '{}': type 'meta' requires a 'meta' block",
+                            d.name
+                        ));
+                    };
+                    if meta.pixel_id.trim().is_empty() {
+                        return err(format!(
+                            "destination '{}': meta.pixel_id must not be empty",
+                            d.name
+                        ));
+                    }
+                    if meta.access_token.trim().is_empty() {
+                        return err(format!(
+                            "destination '{}': meta.access_token must not be empty",
+                            d.name
+                        ));
+                    }
+                    if meta.host.trim().is_empty() {
+                        return err(format!(
+                            "destination '{}': meta.host must not be empty",
+                            d.name
+                        ));
+                    }
+                    if meta.api_version.trim().is_empty() {
+                        return err(format!(
+                            "destination '{}': meta.api_version must not be empty",
+                            d.name
+                        ));
+                    }
+                    if let Some(extra) = d.unexpected_block(&["meta"]) {
+                        return err(format!(
+                            "destination '{}': '{extra}' block is not allowed for type 'meta'",
+                            d.name
+                        ));
+                    }
+                }
+                DestinationType::Sgtm => {
+                    let Some(sgtm) = &d.sgtm else {
+                        return err(format!(
+                            "destination '{}': type 'sgtm' requires an 'sgtm' block",
+                            d.name
+                        ));
+                    };
+                    if !(sgtm.url.starts_with("http://") || sgtm.url.starts_with("https://")) {
+                        return err(format!(
+                            "destination '{}': sgtm.url must start with http:// or https://",
+                            d.name
+                        ));
+                    }
+                    if let Some(extra) = d.unexpected_block(&["sgtm"]) {
+                        return err(format!(
+                            "destination '{}': '{extra}' block is not allowed for type 'sgtm'",
                             d.name
                         ));
                     }
@@ -580,17 +820,17 @@ impl Config {
                             d.name
                         ));
                     }
-                    if d.posthog.is_some() {
+                    if let Some(extra) = d.unexpected_block(&["webhook"]) {
                         return err(format!(
-                            "destination '{}': 'posthog' block is not allowed for type 'webhook'",
+                            "destination '{}': '{extra}' block is not allowed for type 'webhook'",
                             d.name
                         ));
                     }
                 }
                 DestinationType::Log => {
-                    if d.posthog.is_some() || d.webhook.is_some() {
+                    if let Some(extra) = d.unexpected_block(&[]) {
                         return err(format!(
-                            "destination '{}': type 'log' takes no settings blocks",
+                            "destination '{}': type 'log' takes no settings blocks (found '{extra}')",
                             d.name
                         ));
                     }
@@ -769,5 +1009,149 @@ destinations:
         if Path::new(path).exists() {
             Config::load(path).expect("example config must load");
         }
+    }
+
+    #[test]
+    fn accepts_ga4_destination() {
+        let yaml = r#"
+minimization:
+  pseudonymize_salt: "s"
+destinations:
+  - name: ga
+    type: ga4
+    purpose: analytics
+    ga4:
+      measurement_id: "G-TEST"
+      api_secret: "secret"
+routes:
+  - name: all
+    destinations: [ga]
+"#;
+        let cfg = Config::from_yaml(yaml).expect("valid");
+        assert_eq!(cfg.destinations[0].kind, DestinationType::Ga4);
+        assert_eq!(cfg.destinations[0].ga4.as_ref().unwrap().measurement_id, "G-TEST");
+    }
+
+    #[test]
+    fn rejects_ga4_without_ga4_block() {
+        let yaml = r#"
+minimization:
+  pseudonymize_salt: "s"
+destinations:
+  - name: ga
+    type: ga4
+"#;
+        let err = Config::from_yaml(yaml).expect_err("must fail");
+        assert!(err.to_string().contains("requires a 'ga4' block"));
+    }
+
+    #[test]
+    fn rejects_ga4_empty_credentials() {
+        let yaml = r#"
+minimization:
+  pseudonymize_salt: "s"
+destinations:
+  - name: ga
+    type: ga4
+    ga4:
+      measurement_id: "G-TEST"
+      api_secret: ""
+"#;
+        let err = Config::from_yaml(yaml).expect_err("must fail");
+        assert!(err.to_string().contains("api_secret must not be empty"));
+    }
+
+    #[test]
+    fn accepts_meta_destination() {
+        let yaml = r#"
+minimization:
+  pseudonymize_salt: "s"
+destinations:
+  - name: fb
+    type: meta
+    purpose: advertising
+    meta:
+      pixel_id: "123"
+      access_token: "tok"
+routes:
+  - name: all
+    destinations: [fb]
+"#;
+        let cfg = Config::from_yaml(yaml).expect("valid");
+        assert_eq!(cfg.destinations[0].kind, DestinationType::Meta);
+        assert_eq!(cfg.destinations[0].meta.as_ref().unwrap().pixel_id, "123");
+    }
+
+    #[test]
+    fn accepts_sgtm_destination() {
+        let yaml = r#"
+minimization:
+  pseudonymize_salt: "s"
+destinations:
+  - name: srv
+    type: sgtm
+    sgtm:
+      url: "https://sgtm.example.com/g/collect"
+routes:
+  - name: all
+    destinations: [srv]
+"#;
+        let cfg = Config::from_yaml(yaml).expect("valid");
+        assert_eq!(cfg.destinations[0].kind, DestinationType::Sgtm);
+    }
+
+    #[test]
+    fn rejects_sgtm_bad_url() {
+        let yaml = r#"
+minimization:
+  pseudonymize_salt: "s"
+destinations:
+  - name: srv
+    type: sgtm
+    sgtm:
+      url: "sgtm.example.com/g/collect"
+"#;
+        let err = Config::from_yaml(yaml).expect_err("must fail");
+        assert!(err.to_string().contains("sgtm.url must start with http"));
+    }
+
+    #[test]
+    fn rejects_mismatched_settings_block() {
+        let yaml = r#"
+minimization:
+  pseudonymize_salt: "s"
+destinations:
+  - name: ga
+    type: ga4
+    ga4:
+      measurement_id: "G-TEST"
+      api_secret: "s"
+    webhook:
+      url: "https://example.com"
+"#;
+        let err = Config::from_yaml(yaml).expect_err("must fail");
+        assert!(err.to_string().contains("'webhook' block is not allowed for type 'ga4'"));
+    }
+
+    #[test]
+    fn attribution_defaults_off_and_parses() {
+        let yaml = r#"
+minimization:
+  pseudonymize_salt: "s"
+destinations:
+  - name: log
+    type: log
+routes:
+  - name: all
+    destinations: [log]
+attribution:
+  preserve_click_ids: true
+  require_consent: true
+  click_id_keys: [gclid, my_id]
+"#;
+        let cfg = Config::from_yaml(yaml).expect("valid");
+        assert!(cfg.attribution.preserve_click_ids);
+        assert!(cfg.attribution.require_consent);
+        assert_eq!(cfg.attribution.click_id_keys, vec!["gclid", "my_id"]);
     }
 }

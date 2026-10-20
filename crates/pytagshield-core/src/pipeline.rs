@@ -6,6 +6,7 @@ use serde::Serialize;
 use serde_json::Value;
 
 use crate::config::Config;
+use crate::attribution::{preserve as preserve_attribution, AttributionReport};
 use crate::consent::{resolve as resolve_consent, ConsentSnapshot, ConsentStore};
 use crate::error::PipelineError;
 use crate::event::{Event, EventContext};
@@ -28,6 +29,7 @@ pub struct ProcessedEvent {
     pub consent: ConsentSnapshot,
     pub routing: RoutingOutcome,
     pub transforms: TransformReport,
+    pub attribution: AttributionReport,
     pub minimization: MinimizationReport,
 }
 
@@ -46,6 +48,7 @@ pub struct IngestOutcome {
     pub rejected: Vec<EnqueueRejection>,
     pub skipped: Vec<SkippedDestination>,
     pub transforms: TransformReport,
+    pub attribution: AttributionReport,
     pub minimization: MinimizationReport,
 }
 
@@ -65,6 +68,7 @@ impl IngestOutcome {
             rejected: Vec::new(),
             skipped: processed.routing.skipped,
             transforms: processed.transforms,
+            attribution: processed.attribution,
             minimization: processed.minimization,
         }
     }
@@ -154,6 +158,14 @@ impl Pipeline {
         let mut transform_report = TransformReport::default();
         apply_transforms(&mut event, &self.config.transforms, &consent, &mut transform_report);
 
+        let mut attribution_report = AttributionReport::default();
+        preserve_attribution(
+            &mut event,
+            &self.config.attribution,
+            &consent,
+            &mut attribution_report,
+        );
+
         let mut minimization_report = MinimizationReport::default();
         minimize(&mut event, &self.config.minimization, &mut minimization_report);
 
@@ -200,6 +212,7 @@ impl Pipeline {
             consent,
             routing,
             transforms: transform_report,
+            attribution: attribution_report,
             minimization: minimization_report,
         })
     }
@@ -480,5 +493,38 @@ routes:
         assert!(outcome.destinations.is_empty());
         assert!(outcome.matched_routes.is_empty());
         assert_eq!(metrics.events_unrouted.load(Ordering::Relaxed), 1);
+    }
+
+    #[test]
+    fn attribution_preserves_click_ids_end_to_end() {
+        let yaml = base_config(
+            r#"attribution:
+  preserve_click_ids: true
+"#,
+        );
+        let (p, _metrics) = pipeline(&yaml);
+        let mut q = TestQueues::new(&["ph", "ads"], 4);
+        let consent = serde_json::json!({"analytics": true, "advertising": true});
+        let raw = serde_json::json!({
+            "event": "purchase",
+            "distinct_id": "user-42",
+            "properties": {"gclid": "g-123", "url": "/checkout", "email": "a@b.c"},
+            "consent": consent,
+        });
+
+        let outcome =
+            process_and_enqueue(&p, &q.senders, &raw, EventContext::default()).unwrap();
+        assert_eq!(outcome.attribution.click_ids_preserved, 1);
+        assert!(outcome.attribution.preserved.contains(&"gclid".to_string()));
+
+        // The preserved click ID survives minimization and reaches the
+        // destination as part of $attribution.
+        let task = q.receivers.get_mut("ph").unwrap().try_recv().unwrap();
+        assert_eq!(
+            task.event.properties["$attribution"]["gclid"],
+            "g-123"
+        );
+        // PII is still dropped independently.
+        assert!(!task.event.properties.contains_key("email"));
     }
 }

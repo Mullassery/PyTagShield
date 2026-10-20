@@ -1,6 +1,9 @@
 //! Outbound request construction for destination types.
 
+pub mod ga4;
+pub mod meta;
 pub mod posthog;
+pub mod sgtm;
 pub mod webhook;
 
 use serde::Serialize;
@@ -42,6 +45,30 @@ pub fn build(
                 .as_ref()
                 .ok_or_else(|| format!("destination '{}': missing posthog settings", dest.name))?;
             let plan = posthog::capture(settings, event, dest.forwards_ip());
+            Ok(OutboundPlan::Http(plan))
+        }
+        DestinationType::Ga4 => {
+            let settings = dest
+                .ga4
+                .as_ref()
+                .ok_or_else(|| format!("destination '{}': missing ga4 settings", dest.name))?;
+            let plan = ga4::collect(settings, event, dest.forwards_ip());
+            Ok(OutboundPlan::Http(plan))
+        }
+        DestinationType::Meta => {
+            let settings = dest
+                .meta
+                .as_ref()
+                .ok_or_else(|| format!("destination '{}': missing meta settings", dest.name))?;
+            let plan = meta::events(settings, event, dest.forwards_ip());
+            Ok(OutboundPlan::Http(plan))
+        }
+        DestinationType::Sgtm => {
+            let settings = dest
+                .sgtm
+                .as_ref()
+                .ok_or_else(|| format!("destination '{}': missing sgtm settings", dest.name))?;
+            let plan = sgtm::collect(settings, event, dest.forwards_ip());
             Ok(OutboundPlan::Http(plan))
         }
         DestinationType::Webhook => {
@@ -108,6 +135,9 @@ mod tests {
                 api_key: "phc_key".into(),
                 host: "us.i.posthog.com".into(),
             }),
+            ga4: None,
+            meta: None,
+            sgtm: None,
             webhook: None,
         };
         let plan = build(&dest, &event(), &any_consent()).unwrap();
@@ -136,6 +166,9 @@ mod tests {
                 api_key: "k".into(),
                 host: "https://eu.i.posthog.com".into(),
             }),
+            ga4: None,
+            meta: None,
+            sgtm: None,
             webhook: None,
         };
         let OutboundPlan::Http(req) = build(&dest, &e, &any_consent()).unwrap() else {
@@ -155,6 +188,9 @@ mod tests {
             forward_ip: None,
             queue_capacity: None,
             posthog: None,
+            ga4: None,
+            meta: None,
+            sgtm: None,
             webhook: Some(WebhookSettings {
                 url: "https://hooks.example.com/ingest".into(),
                 headers: [("X-Token".to_string(), "t".to_string())].into(),
@@ -179,6 +215,9 @@ mod tests {
             forward_ip: None,
             queue_capacity: None,
             posthog: None,
+            ga4: None,
+            meta: None,
+            sgtm: None,
             webhook: None,
         };
         let plan = build(&dest, &event(), &any_consent()).unwrap();
