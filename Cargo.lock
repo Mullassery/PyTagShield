@@ -824,6 +824,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "pytagshield"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "pyo3",
+ "pytagshield-core",
+ "serde_json",
+]
+
+[[package]]
 name = "pytagshield-core"
 version = "0.1.0"
 dependencies = [
@@ -838,16 +848,6 @@ dependencies = [
  "tokio",
  "tracing",
  "uuid",
-]
-
-[[package]]
-name = "pytagshield-python"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "pyo3",
- "pytagshield-core",
- "serde_json",
 ]
 
 [[package]]

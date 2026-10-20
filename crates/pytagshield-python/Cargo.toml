@@ -1,6 +1,6 @@
 [package]
-name = "pytagshield-python"
-description = "Optional Python bindings for the PyTagShield pipeline (PyO3/maturin)."
+name = "pytagshield"
+description = "Python bindings for PyTagShield: a consent-aware, privacy-minimizing event pipeline."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -8,6 +8,17 @@ license.workspace = true
 repository.workspace = true
 authors.workspace = true
 homepage.workspace = true
+readme = "README.md"
+keywords = ["analytics", "privacy", "consent", "gdpr", "event-pipeline"]
+categories = ["api-bindings"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Topic :: Internet :: Log Analysis",
+    "Topic :: Software Development :: Libraries",
+]
 
 [lib]
 name = "pytagshield"
