@@ -1,0 +1,17 @@
+/target
+Cargo.lock.bak
+**/*.rs.bk
+.venv/
+__pycache__/
+*.py[cod]
+*.so
+*.dylib
+dist/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.DS_Store
+# Local configuration may contain API keys.
+/config/local*.yaml
+/config/local*.yml

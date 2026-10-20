@@ -1,0 +1,19 @@
+[package]
+name = "pytagshield-python"
+description = "Optional Python bindings for the PyTagShield pipeline (PyO3/maturin)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+homepage.workspace = true
+
+[lib]
+name = "pytagshield"
+crate-type = ["cdylib"]
+
+[dependencies]
+pytagshield-core = { path = "../pytagshield-core" }
+pyo3 = { version = "0.22", features = ["extension-module", "abi3-py310"] }
+serde_json.workspace = true
