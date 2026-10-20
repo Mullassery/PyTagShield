@@ -844,6 +844,7 @@ dependencies = [
 name = "pytagshield-python"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "pyo3",
  "pytagshield-core",
  "serde_json",

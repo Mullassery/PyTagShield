@@ -17,3 +17,4 @@ crate-type = ["cdylib"]
 pytagshield-core = { path = "../pytagshield-core" }
 pyo3 = { version = "0.22", features = ["extension-module", "abi3-py310"] }
 serde_json.workspace = true
+chrono.workspace = true
