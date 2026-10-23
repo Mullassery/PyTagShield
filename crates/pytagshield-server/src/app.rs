@@ -12,9 +12,7 @@ use chrono::Utc;
 use tokio::sync::mpsc;
 use tower::limit::ConcurrencyLimitLayer;
 
-use pytagshield_core::{
-    Config, ConsentStore, DeliveryLog, DeliveryTask, Metrics, Pipeline,
-};
+use pytagshield_core::{Config, ConsentStore, DeliveryLog, DeliveryTask, Metrics, Pipeline};
 
 use crate::handlers;
 
@@ -31,7 +29,9 @@ pub struct AppState {
 
 impl AppState {
     pub fn uptime_secs(&self) -> i64 {
-        Utc::now().signed_duration_since(self.started_at).num_seconds()
+        Utc::now()
+            .signed_duration_since(self.started_at)
+            .num_seconds()
     }
 }
 
@@ -114,4 +114,74 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .layer(DefaultBodyLimit::max(body_limit))
         .layer(ConcurrencyLimitLayer::new(concurrency))
         .with_state(state)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::Body;
+    use axum::http::{Request, StatusCode};
+    use http_body_util::BodyExt;
+    use tower::ServiceExt;
+
+    fn config(extra: &str) -> Config {
+        Config::from_yaml(&format!(
+            "minimization:\n  pseudonymize_salt: \"test-salt\"\n{extra}"
+        ))
+        .expect("valid test config")
+    }
+
+    #[tokio::test]
+    async fn healthz_is_public_and_reports_server_state() {
+        let app = build_router(build_state(config("")));
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/healthz")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let value: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(value["status"], "ok");
+        assert_eq!(value["destinations_enabled"], 0);
+    }
+
+    #[tokio::test]
+    async fn ingest_requires_the_configured_bearer_token() {
+        let app = build_router(build_state(config("ingest:\n  token: \"secret\"\n")));
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/event")
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{"event":"page_view","distinct_id":"u1"}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn authenticated_ingest_is_accepted() {
+        let app = build_router(build_state(config("ingest:\n  token: \"secret\"\n")));
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/event")
+                    .header("content-type", "application/json")
+                    .header("authorization", "Bearer secret")
+                    .body(Body::from(r#"{"event":"page_view","distinct_id":"u1"}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::ACCEPTED);
+    }
 }

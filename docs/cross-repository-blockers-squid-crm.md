@@ -10,12 +10,10 @@ Reference pin: `twentyhq/twenty@08a0e5f1ee2e7db7c1e6ef3aeec9bcef731f4e98`
 
 ## 1. The blocker
 
-**Status:** UNVERIFIED / OPEN — No consent decision contract between PyTagShield
-and Squid-CRM. At audit time the PyTagShield GitHub repository had no README and
-no workflows; the server binary was previously found to be a no-op
-(`fn main() {}`), so a runnable HTTP service contract is not evidenced. There is
-no Squid-CRM destination adapter, and no executable evidence that consent
-decisions are attached to outbound CRM records.
+**Status:** RESOLVED IN WORKING TREE (server + contract verified locally) —
+Consent decisions attach to **events**, not Squid records. The server binary is
+now runnable, and outbound events carry a versioned `pytagshield.consent.v1`
+block. Live Squid verification remains outstanding.
 
 ## 2. The two sides
 
@@ -26,32 +24,33 @@ decisions are attached to outbound CRM records.
 | Consent metadata | Not emitted on webhook envelopes; no field-level PII minimization | Consent is a gate: destination receives event only when required purpose is granted |
 | PII handling | No field-level PII masking in webhook payloads | Drop/allowlist properties, truncate strings, clear IPs, pseudonymize identifiers with salted hash |
 | Audit trail | `core.webhook_deliveries` log with retry/terminal state | Bounded per-destination queues, delivery log |
-| Runtime contract | Axum + Tokio, PostgreSQL, schema-per-workspace | Rust core + Python bindings; HTTP server bootstrap still being wired |
+| Runtime contract | Axum + Tokio, PostgreSQL, schema-per-workspace | Rust core + Python bindings; runnable Axum HTTP server |
 
-## 3. What must be agreed (PyTagShield side)
+## 3. Agreed contract (PyTagShield side)
 
-1. **Consent attachment point.** Do consent decisions travel on CRM records (as
-   fields), on webhook events (as envelope metadata), or both? This determines
-   whether Squid stores consent metadata on records or emits it on outbound
-   webhooks.
-2. **Consent schema.** If consent metadata is stored or emitted, what is its
-   shape? (purpose grants, timestamps, provenance, source, version.)
-3. **PII minimization.** Which CRM fields are minimized/pseudonymized before
-   webhook emission? Who decides — PyTagShield policy or Squid configuration?
-4. **Consent authority boundary.** Squid must not be treated as a consent
-   authority. PyTagShield must be the decision point; Squid only stores/forwards
-   what PyTagShield approves.
-5. **Event routing.** Does Squid act as a destination for PyTagShield-processed
-   events, or does Squid emit events that PyTagShield then filters?
+1. **Consent attachment point.** Decided: **events only**. Squid records do not
+   carry consent columns. A deployment may store an opaque decision/event
+   reference in a custom object, but never a boolean grant.
+2. **Consent schema.** Implemented as `pytagshield.consent.v1` on outbound
+   events: `consent` (granted), `consent_decisions` (full boolean map), and
+   `consent_source` (`event|stored|default`).
+3. **PII minimization.** PyTagShield policy decides what survives before
+   egress. Squid must not widen that allowlist or re-introduce dropped fields.
+4. **Consent authority boundary.** PyTagShield is the decision point. Squid
+   only receives data after that gate passes and must not infer consent from a
+   missing field.
+5. **Event routing.** A Squid webhook entering PyTagShield is an input, not a
+   consent decision. PyTagShield re-resolves consent from event/stored/default
+   before forwarding to any destination.
 
 ## 4. Evidence
 
 **PyTagShield:**
-- Rust core + Python bindings (110 tests in the workspace).
+- Rust core + Python bindings + runnable server (113 tests in the workspace).
 - PyPI wheels currently target CPython 3.10+ on macOS arm64; other platforms
   build from source.
-- The HTTP server has a tested router and handlers, but its binary bootstrap is
-  still being wired.
+- The HTTP server binary is now implemented and covered by router tests; it
+  loads and validates YAML config and runs until SIGINT/SIGTERM.
 - Consent is a gate, not a report: default policy is `deny`, precedence is
   explicit (event payload → stored consent → configured default).
 - Minimize before sending: drop or allowlist properties, cap count and depth,
@@ -67,10 +66,9 @@ decisions are attached to outbound CRM records.
 
 ## 5. Owner of next move
 
-**PyTagShield** must define whether consent decisions attach to records, events,
-or both, and provide a runnable HTTP service contract (the server binary was a
-no-op at audit time). Squid-CRM cannot add consent metadata until this is
-defined.
+**PyTagShield:** implemented the event-only consent contract and the runnable
+server. See `docs/squid-consent-contract.md`. **Squid-CRM:** no consent columns
+or consent authority are required; live ingestion verification remains.
 
 ## 6. Related blockers
 

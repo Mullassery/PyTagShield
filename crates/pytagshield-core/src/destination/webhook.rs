@@ -3,13 +3,15 @@ use std::collections::BTreeMap;
 use serde::Serialize;
 
 use crate::config::WebhookSettings;
-use crate::consent::ConsentSnapshot;
+use crate::consent::{ConsentSnapshot, ConsentSource};
 use crate::destination::HttpRequestPlan;
 use crate::event::{Event, EventContext};
 
 /// Versioned webhook envelope. The `schema` field lets consumers detect
 /// breaking changes; new optional fields may be added within a schema version.
 pub const ENVELOPE_SCHEMA: &str = "pytagshield.event.v1";
+/// Versioned shape of the consent decision block carried on approved events.
+pub const CONSENT_SCHEMA: &str = "pytagshield.consent.v1";
 
 #[derive(Debug, Serialize)]
 struct Envelope<'a> {
@@ -20,9 +22,15 @@ struct Envelope<'a> {
     timestamp_millis: i64,
     timestamp: String,
     properties: &'a std::collections::BTreeMap<String, serde_json::Value>,
+    /// Consent contract version for this event.
+    consent_schema: &'static str,
     /// Purposes that were granted for this event (denied purposes are
     /// omitted entirely rather than sent as `false`).
     consent: BTreeMap<String, bool>,
+    /// Full decision for every configured purpose, including denials.
+    consent_decisions: BTreeMap<String, bool>,
+    /// Where the effective decision came from: event, stored, or default.
+    consent_source: ConsentSource,
     context: &'a EventContext,
 }
 
@@ -41,7 +49,10 @@ pub fn request(
         timestamp_millis: event.timestamp_millis,
         timestamp: event.timestamp_rfc3339(),
         properties: &event.properties,
+        consent_schema: CONSENT_SCHEMA,
         consent: consent.granted(),
+        consent_decisions: consent.purposes.clone(),
+        consent_source: consent.source,
         context: &event.context,
     };
 
@@ -53,10 +64,8 @@ pub fn request(
         }),
     };
 
-    let mut headers: Vec<(String, String)> = vec![(
-        "content-type".to_owned(),
-        "application/json".to_owned(),
-    )];
+    let mut headers: Vec<(String, String)> =
+        vec![("content-type".to_owned(), "application/json".to_owned())];
     for (k, v) in &settings.headers {
         // Content-type stays governed by the JSON body.
         if k.eq_ignore_ascii_case("content-type") {
@@ -109,7 +118,10 @@ mod tests {
         assert_eq!(plan.body["distinct_id"], "u");
         assert_eq!(plan.body["properties"]["a"], 1);
         assert_eq!(plan.body["timestamp_millis"], e.timestamp_millis);
+        assert_eq!(plan.body["consent_schema"], CONSENT_SCHEMA);
         assert_eq!(plan.body["consent"]["analytics"], true);
+        assert_eq!(plan.body["consent_decisions"]["analytics"], true);
+        assert_eq!(plan.body["consent_source"], "event");
         assert_eq!(plan.body["context"]["user_agent"], "UA");
     }
 
@@ -127,6 +139,8 @@ mod tests {
         };
         let plan = request(&settings, &e, &consent(false));
         assert!(plan.body["consent"].as_object().unwrap().is_empty());
+        assert_eq!(plan.body["consent_decisions"]["analytics"], false);
+        assert_eq!(plan.body["consent_source"], "event");
     }
 
     #[test]
@@ -149,7 +163,9 @@ mod tests {
         };
         let plan = request(&settings, &e, &consent(true));
         assert_eq!(plan.url, "https://example.com/hook");
-        assert!(plan.headers.contains(&("X-Auth".to_string(), "secret".to_string())));
+        assert!(plan
+            .headers
+            .contains(&("X-Auth".to_string(), "secret".to_string())));
         let content_types: Vec<_> = plan
             .headers
             .iter()

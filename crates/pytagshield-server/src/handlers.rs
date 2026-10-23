@@ -8,9 +8,7 @@ use axum::Json;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
-use pytagshield_core::{
-    EventContext, IngestOutcome, PipelineError, ValidationError,
-};
+use pytagshield_core::{EventContext, PipelineError, ValidationError};
 
 use crate::app::AppState;
 
@@ -26,14 +24,19 @@ pub enum AppError {
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         match self {
-            AppError::Validation(err) => (StatusCode::BAD_REQUEST, Json(json!({
-                "error": "validation_failed",
-                "errors": err.errors,
-            })))
+            AppError::Validation(err) => (
+                StatusCode::BAD_REQUEST,
+                Json(json!({
+                    "error": "validation_failed",
+                    "errors": err.errors,
+                })),
+            )
                 .into_response(),
             AppError::Unauthorized => (
                 StatusCode::UNAUTHORIZED,
-                Json(json!({"error": "unauthorized", "message": "missing or invalid bearer token"})),
+                Json(
+                    json!({"error": "unauthorized", "message": "missing or invalid bearer token"}),
+                ),
             )
                 .into_response(),
             AppError::NotFound(msg) => (
@@ -194,13 +197,12 @@ pub async fn ingest_batch(
     let raw = parse_json(body)?;
     let events: Vec<Value> = match &raw {
         Value::Array(items) => items.clone(),
-        Value::Object(map) => {
-            let envelope: BatchEnvelope =
-                serde_json::from_value(raw.clone()).map_err(|e| {
-                    AppError::BadRequest(format!(
-                        "batch body must be an array or an object with an 'events' array: {e}"
-                    ))
-                })?;
+        Value::Object(_) => {
+            let envelope: BatchEnvelope = serde_json::from_value(raw.clone()).map_err(|e| {
+                AppError::BadRequest(format!(
+                    "batch body must be an array or an object with an 'events' array: {e}"
+                ))
+            })?;
             let Some(items) = envelope.events else {
                 return Err(AppError::BadRequest(
                     "batch body must be an array or an object with an 'events' array".into(),
@@ -239,17 +241,29 @@ pub async fn ingest_batch(
             &event,
             context.clone(),
         ) {
-            Ok(outcome) => match outcome.status {
-                "accepted" => summary["accepted"] = json!(summary["accepted"].as_u64().unwrap_or(0) + 1),
-                "backpressure" => {
-                    summary["backpressure"] =
-                        json!(summary["backpressure"].as_u64().unwrap_or(0) + 1)
+            Ok(outcome) => {
+                match outcome.status {
+                    "accepted" => {
+                        summary["accepted"] = json!(summary["accepted"].as_u64().unwrap_or(0) + 1)
+                    }
+                    "backpressure" => {
+                        summary["backpressure"] =
+                            json!(summary["backpressure"].as_u64().unwrap_or(0) + 1)
+                    }
+                    _ => {
+                        summary["partially_accepted"] =
+                            json!(summary["partially_accepted"].as_u64().unwrap_or(0) + 1)
+                    }
                 }
-                _ => {
-                    summary["partially_accepted"] =
-                        json!(summary["partially_accepted"].as_u64().unwrap_or(0) + 1)
-                }
-            },
+                json!({
+                    "index": index,
+                    "status": outcome.status,
+                    "event_id": outcome.event_id,
+                    "enqueued": outcome.enqueued,
+                    "rejected": outcome.rejected,
+                    "skipped": outcome.skipped,
+                })
+            }
             Err(PipelineError::Validation(err)) => {
                 summary["validation_failed"] =
                     json!(summary["validation_failed"].as_u64().unwrap_or(0) + 1);
@@ -279,7 +293,8 @@ pub async fn set_consent(
         .map_err(|e| AppError::BadRequest(format!("invalid consent payload: {e}")))?;
 
     let distinct_id = body.distinct_id.trim();
-    if distinct_id.is_empty() || distinct_id.chars().count() > state.config.ingest.max_distinct_id_len
+    if distinct_id.is_empty()
+        || distinct_id.chars().count() > state.config.ingest.max_distinct_id_len
     {
         return Err(AppError::BadRequest(format!(
             "'distinct_id' must be 1..={} characters",
@@ -324,11 +339,11 @@ pub async fn get_consent(
     Path(distinct_id): Path<String>,
 ) -> Result<Response, AppError> {
     let now = chrono::Utc::now();
-    match state.pipeline.consent_store().get(
-        &distinct_id,
-        now,
-        state.config.consent.store_ttl_secs,
-    ) {
+    match state
+        .pipeline
+        .consent_store()
+        .get(&distinct_id, now, state.config.consent.store_ttl_secs)
+    {
         Some(purposes) => Ok(Json(json!({
             "distinct_id": distinct_id,
             "purposes": purposes,
@@ -342,7 +357,7 @@ pub async fn get_consent(
 }
 
 #[derive(Deserialize)]
-struct DeliveriesQuery {
+pub struct DeliveriesQuery {
     limit: Option<usize>,
 }
 
@@ -376,7 +391,10 @@ pub async fn healthz(State(state): State<Arc<AppState>>) -> Json<Value> {
 /// `GET /metrics` — Prometheus text exposition.
 pub async fn metrics(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     (
-        [(header::CONTENT_TYPE, "text/plain; version=0.0.4; charset=utf-8")],
+        [(
+            header::CONTENT_TYPE,
+            "text/plain; version=0.0.4; charset=utf-8",
+        )],
         state.metrics.render_prometheus(),
     )
 }
