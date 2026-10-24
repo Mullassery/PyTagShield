@@ -2,6 +2,8 @@
 
 ## OSS gap analysis — 2026-10-24
 
+**What matters most here:** durable consent state and a standard capture path. An in-memory, TTL-evicted consent store cannot survive a restart or support a CMP audit, and without Consent Mode v2/TCF/GPP translation teams must run a separate banner and bridge its state by hand. Integration with an existing CMP is the right fix, not a new banner.
+
 Scope: Compared PyTagShield's implemented server-side consent gate, minimization, routing and delivery pipeline against the actively maintained OSS consent managers and consent-native collection layers users pair with it. Assessed where enforcement happens, what is persisted, destination coverage, standards support and packaging; the repo has no `AUDIT_FINDINGS.md` or `docs/ARCHITECTURE.md`, so the README and source were the primary evidence.
 
 ### Comparable OSS projects
