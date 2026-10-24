@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/pytagshield-banner.svg" alt="PyTagShield — consent-aware, privacy-minimizing analytics events" width="100%" />
+</p>
+
 <div align="center">
 
 # PyTagShield
@@ -7,6 +11,7 @@
 Validate → resolve consent → transform → minimize → route → deliver.  
 Fail closed by default. Pseudonymize before egress. No vendor lock-in.
 
+[![CI](https://github.com/Mullassery/PyTagShield/actions/workflows/ci.yml/badge.svg)](https://github.com/Mullassery/PyTagShield/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/pytagshield.svg)](https://pypi.org/project/pytagshield/)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://pypi.org/project/pytagshield/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE)

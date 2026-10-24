@@ -193,7 +193,12 @@ mod tests {
     fn disabled_config_is_a_noop() {
         let mut e = event_with(json!({"gclid": "abc"}));
         let mut r = AttributionReport::default();
-        preserve(&mut e, &AttributionConfig::default(), &consent(true), &mut r);
+        preserve(
+            &mut e,
+            &AttributionConfig::default(),
+            &consent(true),
+            &mut r,
+        );
         assert!(!e.properties.contains_key(ATTRIBUTION_PROPERTY));
         assert_eq!(r.click_ids_preserved, 0);
     }

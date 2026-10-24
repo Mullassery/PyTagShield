@@ -124,7 +124,10 @@ mod tests {
     fn timestamp_is_micros_string() {
         let plan = collect(&settings(), &event(), false);
         let micros = plan.body["timestamp_micros"].as_str().unwrap();
-        assert_eq!(micros.parse::<i64>().unwrap(), event().timestamp_millis * 1000);
+        assert_eq!(
+            micros.parse::<i64>().unwrap(),
+            event().timestamp_millis * 1000
+        );
     }
 
     #[test]
@@ -161,6 +164,8 @@ mod tests {
         let mut s = settings();
         s.host = "www.google-analytics.com/".into();
         let plan = collect(&s, &event(), false);
-        assert!(plan.url.starts_with("https://www.google-analytics.com/mp/collect"));
+        assert!(plan
+            .url
+            .starts_with("https://www.google-analytics.com/mp/collect"));
     }
 }

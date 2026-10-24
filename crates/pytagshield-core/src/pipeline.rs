@@ -5,8 +5,8 @@ use chrono::Utc;
 use serde::Serialize;
 use serde_json::Value;
 
-use crate::config::Config;
 use crate::attribution::{preserve as preserve_attribution, AttributionReport};
+use crate::config::Config;
 use crate::consent::{resolve as resolve_consent, ConsentSnapshot, ConsentStore};
 use crate::error::PipelineError;
 use crate::event::{Event, EventContext};
@@ -104,7 +104,11 @@ pub struct Pipeline {
 }
 
 impl Pipeline {
-    pub fn new(config: Arc<Config>, consent_store: Arc<ConsentStore>, metrics: Arc<Metrics>) -> Self {
+    pub fn new(
+        config: Arc<Config>,
+        consent_store: Arc<ConsentStore>,
+        metrics: Arc<Metrics>,
+    ) -> Self {
         Self {
             config,
             consent_store,
@@ -150,13 +154,22 @@ impl Pipeline {
 
         // Consent resolution uses the raw identifier, which stays in memory
         // only and is pseudonymized later, before any egress.
-        let stored = self
-            .consent_store
-            .get(&event.distinct_id, now, self.config.consent.store_ttl_secs);
-        let consent = resolve_consent(event.consent.as_ref(), stored.as_ref(), &self.config.consent);
+        let stored =
+            self.consent_store
+                .get(&event.distinct_id, now, self.config.consent.store_ttl_secs);
+        let consent = resolve_consent(
+            event.consent.as_ref(),
+            stored.as_ref(),
+            &self.config.consent,
+        );
 
         let mut transform_report = TransformReport::default();
-        apply_transforms(&mut event, &self.config.transforms, &consent, &mut transform_report);
+        apply_transforms(
+            &mut event,
+            &self.config.transforms,
+            &consent,
+            &mut transform_report,
+        );
 
         let mut attribution_report = AttributionReport::default();
         preserve_attribution(
@@ -167,7 +180,11 @@ impl Pipeline {
         );
 
         let mut minimization_report = MinimizationReport::default();
-        minimize(&mut event, &self.config.minimization, &mut minimization_report);
+        minimize(
+            &mut event,
+            &self.config.minimization,
+            &mut minimization_report,
+        );
 
         let routing = resolve_routes(
             &event,
@@ -225,7 +242,10 @@ impl Pipeline {
 /// queue plumbing can call [`Pipeline::process`] directly.
 pub fn process_and_enqueue(
     pipeline: &Pipeline,
-    queues: &std::collections::HashMap<String, tokio::sync::mpsc::Sender<crate::delivery::DeliveryTask>>,
+    queues: &std::collections::HashMap<
+        String,
+        tokio::sync::mpsc::Sender<crate::delivery::DeliveryTask>,
+    >,
     raw: &Value,
     context: EventContext,
 ) -> Result<IngestOutcome, PipelineError> {
@@ -296,11 +316,7 @@ routes:
 
     fn pipeline(yaml: &str) -> (Pipeline, Arc<Metrics>) {
         let metrics = Arc::new(Metrics::default());
-        let p = Pipeline::new(
-            config(yaml),
-            Arc::new(ConsentStore::new()),
-            metrics.clone(),
-        );
+        let p = Pipeline::new(config(yaml), Arc::new(ConsentStore::new()), metrics.clone());
         (p, metrics)
     }
 
@@ -341,7 +357,8 @@ routes:
         let (p, _metrics) = pipeline(&base_config(""));
         let q = TestQueues::new(&["ph", "ads"], 4);
 
-        let outcome = process_and_enqueue(&p, &q.senders, &raw_event(None), EventContext::default()).unwrap();
+        let outcome =
+            process_and_enqueue(&p, &q.senders, &raw_event(None), EventContext::default()).unwrap();
         assert_accepted_without_consent(&outcome);
     }
 
@@ -364,8 +381,13 @@ routes:
         let mut q = TestQueues::new(&["ph", "ads"], 4);
         let consent = serde_json::json!({"analytics": true, "advertising": true});
 
-        let outcome =
-            process_and_enqueue(&p, &q.senders, &raw_event(Some(consent)), EventContext::default()).unwrap();
+        let outcome = process_and_enqueue(
+            &p,
+            &q.senders,
+            &raw_event(Some(consent)),
+            EventContext::default(),
+        )
+        .unwrap();
 
         assert_eq!(outcome.status, "accepted");
         assert_eq!(outcome.destinations, vec!["ph", "ads"]);
@@ -392,8 +414,13 @@ routes:
         let q = TestQueues::new(&["ph", "ads"], 4);
         let consent = serde_json::json!({"analytics": true, "advertising": false});
 
-        let outcome =
-            process_and_enqueue(&p, &q.senders, &raw_event(Some(consent)), EventContext::default()).unwrap();
+        let outcome = process_and_enqueue(
+            &p,
+            &q.senders,
+            &raw_event(Some(consent)),
+            EventContext::default(),
+        )
+        .unwrap();
 
         assert_eq!(outcome.destinations, vec!["ph"]);
         assert_eq!(outcome.enqueued, vec!["ph"]);
@@ -424,19 +451,24 @@ routes:
         let q = TestQueues::new(&["ph", "ads"], 1);
         let consent = serde_json::json!({"analytics": true, "advertising": true});
 
-        let first =
-            process_and_enqueue(&p, &q.senders, &raw_event(Some(consent.clone())), EventContext::default())
-                .unwrap();
+        let first = process_and_enqueue(
+            &p,
+            &q.senders,
+            &raw_event(Some(consent.clone())),
+            EventContext::default(),
+        )
+        .unwrap();
         assert_eq!(first.status, "accepted");
 
-        let second =
-            process_and_enqueue(&p, &q.senders, &raw_event(Some(consent.clone())), EventContext::default())
-                .unwrap();
+        let second = process_and_enqueue(
+            &p,
+            &q.senders,
+            &raw_event(Some(consent.clone())),
+            EventContext::default(),
+        )
+        .unwrap();
         assert_eq!(second.status, "backpressure");
-        assert!(second
-            .rejected
-            .iter()
-            .all(|r| r.reason == "queue_full"));
+        assert!(second.rejected.iter().all(|r| r.reason == "queue_full"));
 
         // Backpressure must not become silent loss: counters reflect it.
         assert_eq!(p.metrics().enqueue_rejected.load(Ordering::Relaxed), 2);
@@ -512,18 +544,14 @@ routes:
             "consent": consent,
         });
 
-        let outcome =
-            process_and_enqueue(&p, &q.senders, &raw, EventContext::default()).unwrap();
+        let outcome = process_and_enqueue(&p, &q.senders, &raw, EventContext::default()).unwrap();
         assert_eq!(outcome.attribution.click_ids_preserved, 1);
         assert!(outcome.attribution.preserved.contains(&"gclid".to_string()));
 
         // The preserved click ID survives minimization and reaches the
         // destination as part of $attribution.
         let task = q.receivers.get_mut("ph").unwrap().try_recv().unwrap();
-        assert_eq!(
-            task.event.properties["$attribution"]["gclid"],
-            "g-123"
-        );
+        assert_eq!(task.event.properties["$attribution"]["gclid"], "g-123");
         // PII is still dropped independently.
         assert!(!task.event.properties.contains_key("email"));
     }

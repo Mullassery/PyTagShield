@@ -133,7 +133,11 @@ mod tests {
     fn measurement_id_and_query_are_appended() {
         let mut s = settings();
         s.measurement_id = Some("G-XYZ".into());
-        s.query = [("z".to_string(), "2".to_string()), ("a".to_string(), "1".to_string())].into();
+        s.query = [
+            ("z".to_string(), "2".to_string()),
+            ("a".to_string(), "1".to_string()),
+        ]
+        .into();
         let plan = collect(&s, &event(), false);
         // Deterministic ordering: measurement_id first, then sorted query.
         assert_eq!(
@@ -160,7 +164,9 @@ mod tests {
         ]
         .into();
         let plan = collect(&s, &event(), false);
-        assert!(plan.headers.contains(&("X-Auth".to_string(), "t".to_string())));
+        assert!(plan
+            .headers
+            .contains(&("X-Auth".to_string(), "t".to_string())));
         let cts: Vec<_> = plan
             .headers
             .iter()
@@ -176,7 +182,10 @@ mod tests {
         e.context.ip = Some("198.51.100.1".into());
         e.context.user_agent = Some("UA".into());
         let plan = collect(&settings(), &e, true);
-        assert_eq!(plan.body["events"][0]["params"]["ip_override"], "198.51.100.1");
+        assert_eq!(
+            plan.body["events"][0]["params"]["ip_override"],
+            "198.51.100.1"
+        );
         assert_eq!(plan.body["events"][0]["params"]["user_agent"], "UA");
         let plan = collect(&settings(), &e, false);
         assert!(plan.body["events"][0]["params"]["ip_override"].is_null());

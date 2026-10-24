@@ -495,7 +495,8 @@ pub struct DestinationConfig {
 impl DestinationConfig {
     /// Queue capacity for this destination after applying defaults.
     pub fn effective_queue_capacity(&self, delivery: &DeliveryConfig) -> usize {
-        self.queue_capacity.unwrap_or(delivery.default_queue_capacity)
+        self.queue_capacity
+            .unwrap_or(delivery.default_queue_capacity)
     }
 
     /// Whether the client IP may be forwarded to this destination, given the
@@ -575,9 +576,17 @@ pub struct RouteConfig {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "action", rename_all = "snake_case")]
 pub enum Action {
-    Rename { from: String, to: String },
-    Drop { keys: Vec<String> },
-    Set { key: String, value: serde_json::Value },
+    Rename {
+        from: String,
+        to: String,
+    },
+    Drop {
+        keys: Vec<String>,
+    },
+    Set {
+        key: String,
+        value: serde_json::Value,
+    },
     Map {
         key: String,
         from: BTreeMap<String, serde_json::Value>,
@@ -687,7 +696,10 @@ impl Config {
             }
             if let Some(cap) = d.queue_capacity {
                 if cap == 0 {
-                    return err(format!("destination '{}': queue_capacity must be > 0", d.name));
+                    return err(format!(
+                        "destination '{}': queue_capacity must be > 0",
+                        d.name
+                    ));
                 }
             }
             match d.kind {
@@ -843,18 +855,21 @@ impl Config {
                 return err("routes contain an empty name".into());
             }
             if r.destinations.is_empty() {
-                return err(format!("route '{}': destinations must not be empty", r.name));
+                return err(format!(
+                    "route '{}': destinations must not be empty",
+                    r.name
+                ));
             }
             for dest in &r.destinations {
                 if !seen_dest.contains(dest) {
-                    return err(format!(
-                        "route '{}': unknown destination '{dest}'",
-                        r.name
-                    ));
+                    return err(format!("route '{}': unknown destination '{dest}'", r.name));
                 }
             }
             if r.rule.events.is_empty() {
-                return err(format!("route '{}': match.events must not be empty", r.name));
+                return err(format!(
+                    "route '{}': match.events must not be empty",
+                    r.name
+                ));
             }
         }
 
@@ -1002,10 +1017,7 @@ destinations:
     #[test]
     fn loads_example_documented_config() {
         // Keep docs/config/example.yaml honest.
-        let path = concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../config/example.yaml"
-        );
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../config/example.yaml");
         if Path::new(path).exists() {
             Config::load(path).expect("example config must load");
         }
@@ -1029,7 +1041,10 @@ routes:
 "#;
         let cfg = Config::from_yaml(yaml).expect("valid");
         assert_eq!(cfg.destinations[0].kind, DestinationType::Ga4);
-        assert_eq!(cfg.destinations[0].ga4.as_ref().unwrap().measurement_id, "G-TEST");
+        assert_eq!(
+            cfg.destinations[0].ga4.as_ref().unwrap().measurement_id,
+            "G-TEST"
+        );
     }
 
     #[test]
@@ -1130,7 +1145,9 @@ destinations:
       url: "https://example.com"
 "#;
         let err = Config::from_yaml(yaml).expect_err("must fail");
-        assert!(err.to_string().contains("'webhook' block is not allowed for type 'ga4'"));
+        assert!(err
+            .to_string()
+            .contains("'webhook' block is not allowed for type 'ga4'"));
     }
 
     #[test]

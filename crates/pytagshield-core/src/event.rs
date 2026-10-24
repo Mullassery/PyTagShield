@@ -182,9 +182,7 @@ impl Event {
                             consent.insert(k.clone(), b);
                         }
                         None => {
-                            errors.push(format!(
-                                "consent '{k}' must be true or false (got {v})"
-                            ));
+                            errors.push(format!("consent '{k}' must be true or false (got {v})"));
                             bad = true;
                         }
                     }
@@ -298,9 +296,7 @@ mod tests {
 
     #[test]
     fn accepts_well_formed_event() {
-        let e = ok(
-            r#"{"event":"page_view","distinct_id":"u1","properties":{"url":"/a"}}"#,
-        );
+        let e = ok(r#"{"event":"page_view","distinct_id":"u1","properties":{"url":"/a"}}"#);
         assert_eq!(e.name, "page_view");
         assert_eq!(e.distinct_id, "u1");
         assert_eq!(e.timestamp_millis, now().timestamp_millis());
@@ -369,8 +365,10 @@ mod tests {
     fn rejects_bad_properties() {
         let e = err(r#"{"event":"e","distinct_id":"u","properties":[]}"#);
         assert!(e.errors[0].contains("must be a JSON object"));
-        let payload =
-            format!(r#"{{"event":"e","distinct_id":"u","properties":{{"{}":"v"}}}}"#, "k".repeat(300));
+        let payload = format!(
+            r#"{{"event":"e","distinct_id":"u","properties":{{"{}":"v"}}}}"#,
+            "k".repeat(300)
+        );
         let e = err(&payload);
         assert!(e.errors[0].contains("exceeds"));
     }

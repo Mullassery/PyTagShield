@@ -172,22 +172,19 @@ mod tests {
 
     #[test]
     fn match_rule_requires_all_conditions() {
-        let e = event("page_view", &[("env", Value::from("prod")), ("v", Value::from(2))]);
+        let e = event(
+            "page_view",
+            &[("env", Value::from("prod")), ("v", Value::from(2))],
+        );
         let rule = MatchRule {
             events: vec!["page_*".into()],
-            properties: BTreeMap::from([(
-                "env".to_string(),
-                vec![Value::from("prod")],
-            )]),
+            properties: BTreeMap::from([("env".to_string(), vec![Value::from("prod")])]),
         };
         assert!(matches(&rule, &e));
 
         let rule = MatchRule {
             events: vec!["page_*".into()],
-            properties: BTreeMap::from([(
-                "env".to_string(),
-                vec![Value::from("staging")],
-            )]),
+            properties: BTreeMap::from([("env".to_string(), vec![Value::from("staging")])]),
         };
         assert!(!matches(&rule, &e));
     }
@@ -265,10 +262,7 @@ mod tests {
 
     fn consent_with(pairs: &[(&str, bool)]) -> ConsentSnapshot {
         let cfg = ConsentConfig::default();
-        let c: BTreeMap<String, bool> = pairs
-            .iter()
-            .map(|(k, v)| (k.to_string(), *v))
-            .collect();
+        let c: BTreeMap<String, bool> = pairs.iter().map(|(k, v)| (k.to_string(), *v)).collect();
         resolve_consent(Some(&c), None, &cfg)
     }
 
@@ -302,7 +296,12 @@ mod tests {
             },
             enabled: true,
         }];
-        let out = resolve(&e, &routes, &dests_empty(), &consent_with(&[("analytics", true)]));
+        let out = resolve(
+            &e,
+            &routes,
+            &dests_empty(),
+            &consent_with(&[("analytics", true)]),
+        );
         assert!(out.destinations.is_empty());
         assert!(out.skipped.is_empty());
     }
@@ -316,7 +315,12 @@ mod tests {
         let e = event("page_view", &[]);
         let mut r = route("all", &["analytics"]);
         r.enabled = false;
-        let out = resolve(&e, std::slice::from_ref(&r), &destinations(), &consent_with(&[("analytics", true)]));
+        let out = resolve(
+            &e,
+            std::slice::from_ref(&r),
+            &destinations(),
+            &consent_with(&[("analytics", true)]),
+        );
         assert!(out.matched_routes.is_empty());
         assert!(out.destinations.is_empty());
     }
@@ -324,11 +328,13 @@ mod tests {
     #[test]
     fn duplicates_are_deduplicated() {
         let e = event("page_view", &[]);
-        let routes = vec![
-            route("a", &["analytics"]),
-            route("b", &["analytics"]),
-        ];
-        let out = resolve(&e, &routes, &destinations(), &consent_with(&[("analytics", true)]));
+        let routes = vec![route("a", &["analytics"]), route("b", &["analytics"])];
+        let out = resolve(
+            &e,
+            &routes,
+            &destinations(),
+            &consent_with(&[("analytics", true)]),
+        );
         assert_eq!(out.destinations, vec!["analytics"]);
     }
 }

@@ -185,7 +185,8 @@ pub async fn run_delivery_worker(
                 }
                 AttemptOutcome::Terminal => {
                     if last_error.is_none() {
-                        last_error = Some("destination rejected the event (non-retryable status)".into());
+                        last_error =
+                            Some("destination rejected the event (non-retryable status)".into());
                     }
                     finished = true;
                 }

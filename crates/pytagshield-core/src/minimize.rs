@@ -31,7 +31,9 @@ pub fn minimize(event: &mut Event, cfg: &MinimizationConfig, report: &mut Minimi
             .keys()
             .filter(|k| {
                 let lower = k.to_ascii_lowercase();
-                cfg.drop_properties.iter().any(|d| d.to_ascii_lowercase() == lower)
+                cfg.drop_properties
+                    .iter()
+                    .any(|d| d.to_ascii_lowercase() == lower)
             })
             .cloned()
             .collect();
@@ -70,7 +72,13 @@ pub fn minimize(event: &mut Event, cfg: &MinimizationConfig, report: &mut Minimi
     //    order so behaviour is reproducible across runs.
     if event.properties.len() > cfg.max_properties {
         let excess = event.properties.len() - cfg.max_properties;
-        let victims: Vec<String> = event.properties.keys().skip(cfg.max_properties).take(excess).cloned().collect();
+        let victims: Vec<String> = event
+            .properties
+            .keys()
+            .skip(cfg.max_properties)
+            .take(excess)
+            .cloned()
+            .collect();
         for k in victims {
             event.properties.remove(&k);
             report.properties_dropped += 1;
@@ -91,7 +99,11 @@ pub fn minimize(event: &mut Event, cfg: &MinimizationConfig, report: &mut Minimi
 
     // 5. String truncation (recursive, char-boundary safe).
     for value in event.properties.values_mut() {
-        truncate_strings(value, cfg.max_value_string_len, &mut report.values_truncated);
+        truncate_strings(
+            value,
+            cfg.max_value_string_len,
+            &mut report.values_truncated,
+        );
     }
 
     // 6. Pseudonymize the outbound identifier. The raw identifier was
@@ -130,12 +142,8 @@ pub fn salted_hash(salt: &str, value: &str) -> String {
 fn value_depth(v: &Value) -> usize {
     match v {
         Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => 1,
-        Value::Array(items) => {
-            1 + items.iter().map(value_depth).max().unwrap_or(0)
-        }
-        Value::Object(map) => {
-            1 + map.values().map(value_depth).max().unwrap_or(0)
-        }
+        Value::Array(items) => 1 + items.iter().map(value_depth).max().unwrap_or(0),
+        Value::Object(map) => 1 + map.values().map(value_depth).max().unwrap_or(0),
     }
 }
 
@@ -208,7 +216,10 @@ mod tests {
         };
         let mut r = MinimizationReport::default();
         minimize(&mut e, &c, &mut r);
-        assert_eq!(e.properties.keys().collect::<Vec<_>>(), vec!["keep", "page"]);
+        assert_eq!(
+            e.properties.keys().collect::<Vec<_>>(),
+            vec!["keep", "page"]
+        );
         assert_eq!(r.properties_dropped, 1);
     }
 

@@ -102,11 +102,7 @@ mod tests {
 
     fn consent(granted: bool) -> ConsentSnapshot {
         let cfg = ConsentConfig::default();
-        let c: BTreeMap<String, bool> = cfg
-            .purposes
-            .iter()
-            .map(|p| (p.clone(), granted))
-            .collect();
+        let c: BTreeMap<String, bool> = cfg.purposes.iter().map(|p| (p.clone(), granted)).collect();
         resolve_consent(Some(&c), None, &cfg)
     }
 

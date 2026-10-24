@@ -26,7 +26,9 @@ pub struct HttpRequestPlan {
 pub enum OutboundPlan {
     Http(HttpRequestPlan),
     /// Local, side-effect-free destination used for routing diagnostics.
-    Log { detail: String },
+    Log {
+        detail: String,
+    },
 }
 
 /// Build the outbound plan for `event` at `dest`.
@@ -76,7 +78,9 @@ pub fn build(
                 .webhook
                 .as_ref()
                 .ok_or_else(|| format!("destination '{}': missing webhook settings", dest.name))?;
-            Ok(OutboundPlan::Http(webhook::request(settings, event, consent)))
+            Ok(OutboundPlan::Http(webhook::request(
+                settings, event, consent,
+            )))
         }
         DestinationType::Log => Ok(OutboundPlan::Log {
             detail: format!(
@@ -200,7 +204,9 @@ mod tests {
             panic!("expected http");
         };
         assert_eq!(req.url, "https://hooks.example.com/ingest");
-        assert!(req.headers.contains(&("X-Token".to_string(), "t".to_string())));
+        assert!(req
+            .headers
+            .contains(&("X-Token".to_string(), "t".to_string())));
         assert_eq!(req.body["event"], "page_view");
         assert!(req.body["distinct_id"].is_string());
     }
@@ -226,11 +232,11 @@ mod tests {
 
     #[test]
     fn absolute_base_normalization() {
-        assert_eq!(absolute_base("us.i.posthog.com"), "https://us.i.posthog.com");
         assert_eq!(
-            absolute_base("https://example.com/"),
-            "https://example.com"
+            absolute_base("us.i.posthog.com"),
+            "https://us.i.posthog.com"
         );
+        assert_eq!(absolute_base("https://example.com/"), "https://example.com");
         assert_eq!(
             absolute_base("http://localhost:8000"),
             "http://localhost:8000"

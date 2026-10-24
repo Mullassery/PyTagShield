@@ -70,7 +70,9 @@ pub fn events(settings: &MetaSettings, event: &Event, include_ip: bool) -> HttpR
     // Preserved attribution block, if present.
     if let Some(Value::Object(attr)) = event.properties.get("$attribution") {
         if let Some(Value::String(v)) = attr.get("fbclid") {
-            user_data.entry("fbc".to_owned()).or_insert_with(|| json!(v));
+            user_data
+                .entry("fbc".to_owned())
+                .or_insert_with(|| json!(v));
         }
     }
 
@@ -233,7 +235,10 @@ mod tests {
         let mut e = event(json!({}));
         e.context.user_agent = Some("UA/1".into());
         let plan = events(&settings(), &e, false);
-        assert_eq!(plan.body["data"][0]["user_data"]["client_user_agent"], "UA/1");
+        assert_eq!(
+            plan.body["data"][0]["user_data"]["client_user_agent"],
+            "UA/1"
+        );
         assert!(plan.body["data"][0]["user_data"]["external_id"].is_string());
     }
 
@@ -276,8 +281,9 @@ mod tests {
 
     #[test]
     fn _hashing_is_stable() {
-        let a: BTreeMap<String, String> =
-            [("k".to_string(), sha256_hex("value"))].into_iter().collect();
+        let a: BTreeMap<String, String> = [("k".to_string(), sha256_hex("value"))]
+            .into_iter()
+            .collect();
         assert_eq!(a["k"].len(), 64);
     }
 }

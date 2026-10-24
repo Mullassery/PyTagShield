@@ -2,6 +2,10 @@
 // explicit `PyResult` on signatures looks like a redundant conversion to
 // clippy even though it is required for readability and error types.
 #![allow(clippy::useless_conversion)]
+// pyo3 0.22 expands `create_exception!` with cfg checks for legacy features
+// (`gil-refs`) that newer rustc flags as unexpected. The cfg is internal to
+// the macro and does not affect this crate.
+#![allow(unexpected_cfgs)]
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -132,24 +136,16 @@ impl PyConfig {
     #[staticmethod]
     fn from_yaml(yaml: &str) -> PyResult<Self> {
         Config::from_yaml(yaml)
-            .map(|c| Self {
-                inner: Arc::new(c),
-            })
-            .map_err(|e| {
-                Python::with_gil(|py| map_error(py, e))
-            })
+            .map(|c| Self { inner: Arc::new(c) })
+            .map_err(|e| Python::with_gil(|py| map_error(py, e)))
     }
 
     /// Load a configuration from a file path.
     #[staticmethod]
     fn from_path(path: &str) -> PyResult<Self> {
         Config::load(path)
-            .map(|c| Self {
-                inner: Arc::new(c),
-            })
-            .map_err(|e| {
-                Python::with_gil(|py| map_error(py, e))
-            })
+            .map(|c| Self { inner: Arc::new(c) })
+            .map_err(|e| Python::with_gil(|py| map_error(py, e)))
     }
 
     /// Purposes understood by this configuration.

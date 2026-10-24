@@ -144,7 +144,12 @@ impl ConsentStore {
     }
 
     /// Look up consent, ignoring expired entries.
-    pub fn get(&self, distinct_id: &str, now: DateTime<Utc>, ttl_secs: u64) -> Option<BTreeMap<String, bool>> {
+    pub fn get(
+        &self,
+        distinct_id: &str,
+        now: DateTime<Utc>,
+        ttl_secs: u64,
+    ) -> Option<BTreeMap<String, bool>> {
         let map = match self.inner.read() {
             Ok(g) => g,
             Err(poisoned) => poisoned.into_inner(),
@@ -178,10 +183,7 @@ mod tests {
     }
 
     fn map(pairs: &[(&str, bool)]) -> BTreeMap<String, bool> {
-        pairs
-            .iter()
-            .map(|(k, v)| (k.to_string(), *v))
-            .collect()
+        pairs.iter().map(|(k, v)| (k.to_string(), *v)).collect()
     }
 
     #[test]
@@ -250,13 +252,7 @@ mod tests {
         let now = Utc::now();
         for i in 0..10 {
             let t = now + Duration::seconds(i);
-            store.set(
-                &format!("u{i}"),
-                map(&[("analytics", true)]),
-                t,
-                3600,
-                5,
-            );
+            store.set(&format!("u{i}"), map(&[("analytics", true)]), t, 3600, 5);
         }
         assert_eq!(store.len(), 5);
         // The five newest entries survive.

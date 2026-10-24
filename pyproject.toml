@@ -1,0 +1,50 @@
+[build-system]
+requires = ["maturin>=1.5,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "pytagshield"
+version = "0.2.0"
+description = "Consent-aware, privacy-minimizing analytics event pipeline with a Rust core."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Georgi Mammen Mullassery", email = "mullassery@gmail.com" }]
+keywords = [
+    "analytics",
+    "consent",
+    "privacy",
+    "gdpr",
+    "event-pipeline",
+    "ga4",
+    "meta-capi",
+    "posthog",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Rust",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "maturin>=1.5,<2.0"]
+
+[project.urls]
+Homepage = "https://github.com/Mullassery/PyTagShield"
+Repository = "https://github.com/Mullassery/PyTagShield"
+"Bug Tracker" = "https://github.com/Mullassery/PyTagShield/issues"
+Changelog = "https://github.com/Mullassery/PyTagShield/releases"
+
+[tool.maturin]
+manifest-path = "crates/pytagshield-python/Cargo.toml"
+module-name = "pytagshield"
+bindings = "pyo3"

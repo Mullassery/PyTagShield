@@ -61,23 +61,108 @@ impl Metrics {
         }
 
         let mut out = String::with_capacity(4096);
-        line(&mut out, "pytagshield_events_received", "Ingest events received", self.events_received.load(Ordering::Relaxed));
-        line(&mut out, "pytagshield_events_rejected", "Events rejected by validation", self.events_rejected.load(Ordering::Relaxed));
-        line(&mut out, "pytagshield_events_accepted", "Events accepted by the pipeline", self.events_accepted.load(Ordering::Relaxed));
-        line(&mut out, "pytagshield_events_unrouted", "Accepted events matching no route", self.events_unrouted.load(Ordering::Relaxed));
-        line(&mut out, "pytagshield_routes_matched", "Events matching at least one route", self.routes_matched.load(Ordering::Relaxed));
-        line(&mut out, "pytagshield_consent_denied_destinations", "Destination selections denied by consent", self.consent_denied_destinations.load(Ordering::Relaxed));
-        line(&mut out, "pytagshield_disabled_destinations", "Destination selections skipped (disabled)", self.disabled_destinations.load(Ordering::Relaxed));
-        line(&mut out, "pytagshield_enqueued", "Events enqueued for delivery", self.enqueued.load(Ordering::Relaxed));
-        line(&mut out, "pytagshield_enqueue_rejected", "Enqueue rejections due to full queues", self.enqueue_rejected.load(Ordering::Relaxed));
-        line(&mut out, "pytagshield_properties_dropped", "Properties dropped by minimization", self.properties_dropped.load(Ordering::Relaxed));
-        line(&mut out, "pytagshield_values_truncated", "Values truncated by minimization", self.values_truncated.load(Ordering::Relaxed));
-        line(&mut out, "pytagshield_ids_pseudonymized", "Distinct ids pseudonymized", self.ids_pseudonymized.load(Ordering::Relaxed));
-        line(&mut out, "pytagshield_enrichment_skipped", "Enrichment actions skipped by consent", self.enrichment_skipped.load(Ordering::Relaxed));
-        line(&mut out, "pytagshield_delivery_attempts", "Outbound delivery attempts", self.delivery_attempts.load(Ordering::Relaxed));
-        line(&mut out, "pytagshield_delivery_succeeded", "Successful outbound deliveries", self.delivery_succeeded.load(Ordering::Relaxed));
-        line(&mut out, "pytagshield_delivery_failed", "Deliveries abandoned after retries", self.delivery_failed.load(Ordering::Relaxed));
-        line(&mut out, "pytagshield_requests_denied", "Requests denied by auth or limits", self.requests_denied.load(Ordering::Relaxed));
+        line(
+            &mut out,
+            "pytagshield_events_received",
+            "Ingest events received",
+            self.events_received.load(Ordering::Relaxed),
+        );
+        line(
+            &mut out,
+            "pytagshield_events_rejected",
+            "Events rejected by validation",
+            self.events_rejected.load(Ordering::Relaxed),
+        );
+        line(
+            &mut out,
+            "pytagshield_events_accepted",
+            "Events accepted by the pipeline",
+            self.events_accepted.load(Ordering::Relaxed),
+        );
+        line(
+            &mut out,
+            "pytagshield_events_unrouted",
+            "Accepted events matching no route",
+            self.events_unrouted.load(Ordering::Relaxed),
+        );
+        line(
+            &mut out,
+            "pytagshield_routes_matched",
+            "Events matching at least one route",
+            self.routes_matched.load(Ordering::Relaxed),
+        );
+        line(
+            &mut out,
+            "pytagshield_consent_denied_destinations",
+            "Destination selections denied by consent",
+            self.consent_denied_destinations.load(Ordering::Relaxed),
+        );
+        line(
+            &mut out,
+            "pytagshield_disabled_destinations",
+            "Destination selections skipped (disabled)",
+            self.disabled_destinations.load(Ordering::Relaxed),
+        );
+        line(
+            &mut out,
+            "pytagshield_enqueued",
+            "Events enqueued for delivery",
+            self.enqueued.load(Ordering::Relaxed),
+        );
+        line(
+            &mut out,
+            "pytagshield_enqueue_rejected",
+            "Enqueue rejections due to full queues",
+            self.enqueue_rejected.load(Ordering::Relaxed),
+        );
+        line(
+            &mut out,
+            "pytagshield_properties_dropped",
+            "Properties dropped by minimization",
+            self.properties_dropped.load(Ordering::Relaxed),
+        );
+        line(
+            &mut out,
+            "pytagshield_values_truncated",
+            "Values truncated by minimization",
+            self.values_truncated.load(Ordering::Relaxed),
+        );
+        line(
+            &mut out,
+            "pytagshield_ids_pseudonymized",
+            "Distinct ids pseudonymized",
+            self.ids_pseudonymized.load(Ordering::Relaxed),
+        );
+        line(
+            &mut out,
+            "pytagshield_enrichment_skipped",
+            "Enrichment actions skipped by consent",
+            self.enrichment_skipped.load(Ordering::Relaxed),
+        );
+        line(
+            &mut out,
+            "pytagshield_delivery_attempts",
+            "Outbound delivery attempts",
+            self.delivery_attempts.load(Ordering::Relaxed),
+        );
+        line(
+            &mut out,
+            "pytagshield_delivery_succeeded",
+            "Successful outbound deliveries",
+            self.delivery_succeeded.load(Ordering::Relaxed),
+        );
+        line(
+            &mut out,
+            "pytagshield_delivery_failed",
+            "Deliveries abandoned after retries",
+            self.delivery_failed.load(Ordering::Relaxed),
+        );
+        line(
+            &mut out,
+            "pytagshield_requests_denied",
+            "Requests denied by auth or limits",
+            self.requests_denied.load(Ordering::Relaxed),
+        );
         out
     }
 }
