@@ -8,7 +8,7 @@ no backport policy for older versions yet.
 ## Reporting a vulnerability
 
 Please do not open a public issue for a security vulnerability. Use GitHub's
-[private vulnerability reporting](https://github.com/Mullassery/PyTagShield/security/advisories/new)
+[private vulnerability reporting](../PyTagShield/security/advisories/new)
 for this repository. If private reporting is unavailable, open an issue titled
 "Security contact request" with no vulnerability details so a private channel
 can be arranged.

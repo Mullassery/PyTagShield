@@ -16,7 +16,7 @@ so review times vary and there is no guaranteed merge or response SLA.
 Requires Rust 1.75+ and CPython 3.10+.
 
 ```bash
-git clone https://github.com/Mullassery/PyTagShield.git
+git clone ../PyTagShield
 cd PyTagShield
 cargo build
 cargo test --workspace
