@@ -13,9 +13,12 @@ validate, minimize, and route events from Python without running a server.
 
 ```bash
 pip install pytagshield
+# or
+uv add pytagshield
 ```
 
-Requires CPython 3.10+ (abi3 wheel).
+Requires CPython 3.10+ (abi3 wheel). `pytagshield._core` is the internal Rust
+extension; the public API is re-exported by the `pytagshield` Python wrapper.
 
 ## Quick start
 

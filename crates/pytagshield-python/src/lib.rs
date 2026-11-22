@@ -309,7 +309,7 @@ impl PyPipeline {
 }
 
 #[pymodule]
-fn pytagshield(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     m.add_class::<PyConfig>()?;
     m.add_class::<PyPipeline>()?;

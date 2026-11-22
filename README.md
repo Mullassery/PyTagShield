@@ -55,10 +55,13 @@ PyTagShield runs the privacy-sensitive stages **before** egress:
 
 ```bash
 pip install pytagshield
+# or
+uv add pytagshield
 ```
 
-Requires CPython 3.10+. The published wheel is abi3 (macOS arm64 today); on other
-platforms, build from source (see [Development](#development)).
+Current release: **0.3.0**. Requires CPython 3.10+. The published wheel is
+cp310-abi3 (macOS arm64 today); other platforms install from source with
+Rust 1.75+ (see [Development](#development)).
 
 ```python
 import pytagshield
@@ -215,6 +218,9 @@ your legal basis before production use.
 `event`, resolved `consent`, `routing`, `transforms`, `attribution` and
 `minimization` reports.
 
+`pytagshield._core` is the internal Rust extension; the public names above are
+re-exported by the Python wrapper.
+
 ## Development
 
 ```bash
@@ -226,14 +232,15 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all -- --check
 ```
 
-Build the Python extension from source:
+Build and install the Python wrapper from source:
 
 ```bash
+uv sync --extra dev
+uv run pytest tests/
+# or, with pip:
 python -m venv .venv && source .venv/bin/activate
-pip install maturin
-maturin build --release -m crates/pytagshield-python/Cargo.toml --out dist
-pip install dist/*.whl
-python crates/pytagshield-python/tests/test_binding.py
+pip install -e . pytest
+pytest tests/
 ```
 
 | Crate | Responsibility |

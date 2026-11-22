@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "pytagshield"
-version = "0.2.0"
+version = "0.3.0"
 description = "Consent-aware, privacy-minimizing analytics event pipeline with a Rust core."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -46,5 +46,8 @@ Changelog = "https://github.com/Mullassery/PyTagShield/releases"
 
 [tool.maturin]
 manifest-path = "crates/pytagshield-python/Cargo.toml"
-module-name = "pytagshield"
+python-source = "python"
+module-name = "pytagshield._core"
 bindings = "pyo3"
+features = ["pyo3/extension-module"]
+include = ["LICENSE"]

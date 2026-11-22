@@ -41,12 +41,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install maturin and pytest
-        run: python -m pip install --upgrade pip maturin pytest
-      - name: Build and install the extension
+      - uses: astral-sh/setup-uv@v5
+      - name: Install with pip in a clean venv
         run: |
-          python -m venv .venv
-          echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
-          maturin develop -m crates/pytagshield-python/Cargo.toml
-      - name: Run binding tests
-        run: python crates/pytagshield-python/tests/test_binding.py
+          python -m venv .venv-pip
+          .venv-pip/bin/python -m pip install . pytest
+          .venv-pip/bin/python -c "import pytagshield; assert pytagshield.__version__ == '0.3.0'"
+      - name: Install with uv in a clean venv
+        run: |
+          uv venv --python ${{ matrix.python-version }} .venv-uv
+          uv pip install --python .venv-uv/bin/python . pytest
+          .venv-uv/bin/python -c "import pytagshield; assert pytagshield.__version__ == '0.3.0'"
+      - name: Run tests
+        run: .venv-uv/bin/python -m pytest tests/ -v

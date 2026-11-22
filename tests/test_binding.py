@@ -1,6 +1,9 @@
 import json
 import pytagshield
 
+assert pytagshield.__version__ == "0.3.0"
+assert pytagshield.Config is pytagshield._core.Config
+
 CONFIG = """
 minimization:
   pseudonymize_salt: "test-salt"

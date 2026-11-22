@@ -22,14 +22,20 @@ cargo build
 cargo test --workspace
 ```
 
-Python bindings:
+Python wrapper and bindings:
+
+```bash
+uv sync --extra dev
+uv run pytest tests/
+```
+
+With pip instead:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install maturin pytest
-maturin develop -m crates/pytagshield-python/Cargo.toml
-python crates/pytagshield-python/tests/test_binding.py
+pip install -e . pytest
+pytest tests/
 ```
 
 ## Checks before opening a pull request
