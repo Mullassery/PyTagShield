@@ -237,10 +237,10 @@ Build and install the Python wrapper from source:
 ```bash
 uv sync --extra dev
 uv run pytest tests/
-# or, with pip:
+# or, with pip from the ~/Desktop/Projects workspace:
 python -m venv .venv && source .venv/bin/activate
-pip install -e . pytest
-pytest tests/
+pip install -e PyTagShield pytest
+cd PyTagShield && pytest tests/
 ```
 
 | Crate | Responsibility |
